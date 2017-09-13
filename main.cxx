@@ -11,8 +11,7 @@
   ===============================================================================*/
 
 // VTK includes
-#include <vtkSphereSource.h>
-#include <vtkSmartPointer.h>
+#include <vtkNew.h>
 #include <vtkUnsignedCharArray.h>
 #include <vtkMath.h>
 #include <vtkRenderer.h>
@@ -21,70 +20,71 @@
 #include <vtkActor.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkCellData.h>
-#include <vtkXMLPolyDataWriter.h>
+#include <vtkPolyDataReader.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkPolyData.h>
 
 //STD includes
 #include <iostream>
+#include <cstdlib>
 
 int main(int argc, char **argv)
 {
 
-  if (argc != 2)
+  if (argc != 7)
     {
     std::cerr << "Invalid number of arguments" << std::endl;
-    std::cerr << "Usage: " << argv[0] << "<output_name>.vtp" << std::endl;
+    std::cerr << "Usage: " << argv[0]
+              << "<input_file>.vtk"
+              << "<red_component>"
+              << "<green_component>"
+              << "<blue_component>"
+              << "<alpha_component>"
+              << "<output_name>.vtk" << std::endl;
     return EXIT_FAILURE;
     }
 
-
-  // Create a 3D sphere
-  vtkSmartPointer<vtkSphereSource> sphere =
-    vtkSmartPointer<vtkSphereSource>::New();
-  sphere->Update();
+  // Read the input data
+  vtkNew<vtkPolyDataReader> reader;
+  reader->SetFileName(argv[1]);
+  reader->Update();
 
   // Cell data
-  vtkSmartPointer<vtkUnsignedCharArray> cellData =
-    vtkSmartPointer<vtkUnsignedCharArray>::New();
+  vtkNew<vtkUnsignedCharArray> cellData;
   cellData->SetNumberOfComponents(4);
-  cellData->SetNumberOfTuples(sphere->GetOutput()->GetNumberOfCells());
+  cellData->SetNumberOfTuples(reader->GetOutput()->GetNumberOfCells());
 
   // Assign random colors to cell data
-  for(int i=0; i<sphere->GetOutput()->GetNumberOfCells(); ++i)
+  for(int i=0; i<reader->GetOutput()->GetNumberOfCells(); ++i)
     {
     float color_rgba[4];
-    color_rgba[0] = vtkMath::Random(64, 255);
-    color_rgba[1] = vtkMath::Random(64, 255);
-    color_rgba[2] = vtkMath::Random(64, 255);
-    color_rgba[3] = vtkMath::Random(64, 255);
+    color_rgba[0] = atoi(argv[2]);
+    color_rgba[1] = atoi(argv[3]);
+    color_rgba[2] = atoi(argv[4]);
+    color_rgba[3] = atoi(argv[5]);
     cellData->InsertTuple(i, color_rgba);
     }
-  sphere->GetOutput()->GetCellData()->SetScalars(cellData);
+  reader->GetOutput()->GetCellData()->SetScalars(cellData.GetPointer());
 
-  vtkSmartPointer<vtkPolyDataMapper> mapper =
-    vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInputConnection(sphere->GetOutputPort());
+  vtkNew<vtkPolyDataMapper> mapper;
+  mapper->SetInputData(reader->GetOutput());
 
-  vtkSmartPointer<vtkActor> actor =
-    vtkSmartPointer<vtkActor>::New();
-  actor->SetMapper(mapper);
+  vtkNew<vtkActor> actor;
+  actor->SetMapper(mapper.GetPointer());
 
-  vtkSmartPointer<vtkRenderer> renderer =
-    vtkSmartPointer<vtkRenderer>::New();
-  vtkSmartPointer<vtkRenderWindow> renderWindow =
-    vtkSmartPointer<vtkRenderWindow>::New();
-  renderWindow->AddRenderer(renderer);
+  vtkNew<vtkRenderer> renderer;
+  vtkNew<vtkRenderWindow> renderWindow;
+  renderWindow->AddRenderer(renderer.GetPointer());
 
-  vtkSmartPointer<vtkRenderWindowInteractor> interactor =
-    vtkSmartPointer<vtkRenderWindowInteractor>::New();
-  interactor->SetRenderWindow(renderWindow);
-  renderer->AddActor(actor);
+  vtkNew<vtkRenderWindowInteractor> interactor;
+  interactor->SetRenderWindow(renderWindow.GetPointer());
+  renderer->AddActor(actor.GetPointer());
   renderWindow->Render();
   interactor->Start();
 
-  vtkSmartPointer<vtkXMLPolyDataWriter> writer =
-    vtkSmartPointer<vtkXMLPolyDataWriter>::New();
-  writer->SetInputData(sphere->GetOutput());
-  writer->SetFileName(argv[1]);
+  vtkNew<vtkPolyDataWriter> writer;
+  writer->SetInputData(reader->GetOutput());
+  writer->SetFileName(argv[6]);
   writer->Update();
 
 
